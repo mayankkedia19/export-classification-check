@@ -1,0 +1,2 @@
+# Optional: real sentence-transformers embeddings (needs network access to download the model once)
+sentence-transformers>=3.0

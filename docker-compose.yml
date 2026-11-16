@@ -1,0 +1,158 @@
+# Start:  cp .env.example .env && docker compose up --build
+# Scale:  docker compose up --build --scale worker=3
+x-app-env: &app-env
+  APP_ENV: ${APP_ENV:-dev}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ecc}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${POSTGRES_DB:-ecc}
+  REDIS_URL: redis://redis:6379/0
+  INDEX_DIR: /index
+  CORPUS_DIR: /app/corpus
+  ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+  API_KEYS: ${API_KEYS:-}
+  LLM_PROVIDER: ${LLM_PROVIDER:-openai_compatible}
+  LLM_BASE_URL: ${LLM_BASE_URL:-http://stub-llm:8001/v1}
+  LLM_MODEL: ${LLM_MODEL:-}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-20}
+  LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+  LLM_BACKOFF_BASE_S: ${LLM_BACKOFF_BASE_S:-0.4}
+  BREAKER_FAILURE_THRESHOLD: ${BREAKER_FAILURE_THRESHOLD:-3}
+  BREAKER_RESET_S: ${BREAKER_RESET_S:-15}
+  PRICE_PROMPT_PER_1K: ${PRICE_PROMPT_PER_1K:-0.0005}
+  PRICE_COMPLETION_PER_1K: ${PRICE_COMPLETION_PER_1K:-0.0015}
+  MAX_AGENT_STEPS: ${MAX_AGENT_STEPS:-12}
+  MAX_TOOL_CALLS: ${MAX_TOOL_CALLS:-30}
+  RUN_TIMEOUT_S: ${RUN_TIMEOUT_S:-60}
+  TOOL_TIMEOUT_S: ${TOOL_TIMEOUT_S:-5}
+  MAX_RESEARCH_ATTEMPTS: ${MAX_RESEARCH_ATTEMPTS:-3}
+  PROMPT_VERSION: ${PROMPT_VERSION:-v2}
+  RETRIEVAL_MODE: ${RETRIEVAL_MODE:-hybrid}
+  EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-auto}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+  CACHE_TTL_S: ${CACHE_TTL_S:-3600}
+  RUN_CACHE_ENABLED: ${RUN_CACHE_ENABLED:-true}
+  RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-30}
+  LIVE_SCORE_SAMPLE_RATE: ${LIVE_SCORE_SAMPLE_RATE:-0.25}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+
+x-app-build: &app-build
+  build:
+    context: .
+    args:
+      WITH_ST: ${WITH_ST:-0}
+
+services:
+  postgres:   # persistent records: runs, steps, quarantine, feedback, quality scores
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ecc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env first}
+      POSTGRES_DB: ${POSTGRES_DB:-ecc}
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecc} -d ${POSTGRES_DB:-ecc}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:      # broker, run/embedding cache, rate-limit counters, fault-injection flag
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  indexer:    # one-shot, idempotent corpus pipeline; writes the shared index volume
+    <<: *app-build
+    command: ["python", "-m", "app.corpus.ingest"]
+    environment: *app-env
+    volumes:
+      - ./corpus:/app/corpus:ro
+      - index_data:/index
+    user: "0"
+    restart: "no"
+
+  stub-llm:   # deterministic OpenAI-compatible stub with realistic delay (D6)
+    <<: *app-build
+    command: ["uvicorn", "app.stubllm.service:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      <<: *app-env
+      STUB_DELAY_MS: ${STUB_DELAY_MS:-600}
+      STUB_JITTER_MS: ${STUB_JITTER_MS:-200}
+    depends_on:
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8001/health',timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:        # ingestion boundary, run submission/status/result/trace, UI
+    <<: *app-build
+    environment: *app-env
+    volumes:
+      - ./corpus:/app/corpus:ro
+      - index_data:/index:ro
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      indexer: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/ready',timeout=3)"]
+      interval: 10s
+      timeout: 4s
+      retries: 20
+
+  worker:     # agent workers: scale with --scale worker=N
+    <<: *app-build
+    command: ["sh", "-c", "celery -A app.worker.celery_app worker -P threads -c ${WORKER_CONCURRENCY:-4} -Q ecc --loglevel=INFO"]
+    environment: *app-env
+    volumes:
+      - index_data:/index:ro
+    depends_on:
+      api: {condition: service_healthy}
+      stub-llm: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:9101/metrics',timeout=3)"]
+      interval: 10s
+      timeout: 4s
+      retries: 20
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes: [./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: ["9090:9090"]
+    depends_on: [api]
+
+  cadvisor:   # per-container CPU/memory/uptime for the dashboard (D5)
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports: ["8080:8080"]
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    environment: {COLLECTOR_OTLP_ENABLED: "true"}
+    ports: ["16686:16686"]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?copy .env.example to .env first}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  pg_data:
+  index_data:
