@@ -1,0 +1,2 @@
+{"description": "Baseline: retrieval-first, follow-up search only after the verifier asks for it.",
+ "flags": {"derive_followup_query": false, "default_strategy": "semantic_expand"}}

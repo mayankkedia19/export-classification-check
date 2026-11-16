@@ -1,0 +1,2 @@
+{"description": "GRI-ordered: look for a heading that names the article first, then read its notes and derive a follow-up query from what was read.",
+ "flags": {"derive_followup_query": true, "default_strategy": "article_first"}}
