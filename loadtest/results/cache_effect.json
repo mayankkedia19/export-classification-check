@@ -1,0 +1,22 @@
+{
+  "uncached": {
+    "n": 12,
+    "p50_s": 6.94,
+    "p95_s": 7.74,
+    "mean_cost_usd": 0.008477
+  },
+  "repeat_same_request": {
+    "n": 12,
+    "hits": 11,
+    "p50_s": 0.017,
+    "p95_s": 7.44,
+    "mean_cost_usd": 0.00087
+  },
+  "pool_of_5_repeating": {
+    "n": 24,
+    "hit_ratio": 0.792,
+    "p50_s": 0.017,
+    "p95_s": 7.16,
+    "mean_cost_usd": 0.001757
+  }
+}

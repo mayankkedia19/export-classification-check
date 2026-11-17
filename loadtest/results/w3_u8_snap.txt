@@ -1,0 +1,15 @@
+t=5 queue=0 uvicorn:27.0 celery:26.1 celery:25.7 celery:25.6 python3:20.1 uvicorn:8.8 
+t=10 queue=0 uvicorn:19.5 celery:18.0 celery:18.0 celery:17.7 python3:11.5 uvicorn:6.6 
+t=15 queue=0 uvicorn:16.1 celery:14.3 celery:14.2 celery:14.1 python3:8.8 uvicorn:5.5 
+t=20 queue=0 uvicorn:14.0 celery:12.0 celery:11.9 celery:11.8 python3:7.3 uvicorn:4.8 
+t=25 queue=0 uvicorn:12.7 celery:10.5 celery:10.4 celery:10.3 python3:6.4 uvicorn:4.3 
+t=30 queue=0 uvicorn:11.7 celery:9.5 celery:9.3 celery:9.3 python3:5.9 uvicorn:4.0 
+t=35 queue=0 uvicorn:11.0 celery:8.6 celery:8.5 celery:8.5 python3:5.5 uvicorn:3.8 
+t=40 queue=0 uvicorn:10.5 celery:8.0 celery:7.8 celery:7.8 python3:5.2 uvicorn:3.6 
+t=45 queue=0 uvicorn:10.1 celery:7.6 celery:7.4 celery:7.3 python3:5.0 uvicorn:3.4 
+t=50 queue=0 uvicorn:9.7 celery:7.1 celery:7.0 celery:7.0 python3:4.7 uvicorn:3.3 
+t=55 queue=0 uvicorn:9.4 celery:6.8 celery:6.7 celery:6.7 python3:4.6 uvicorn:3.3 
+t=60 queue=0 uvicorn:9.2 celery:6.6 celery:6.4 celery:6.4 python3:4.5 uvicorn:3.2 
+t=65 queue=0 uvicorn:9.0 celery:6.3 celery:6.2 celery:6.2 python3:4.4 uvicorn:3.1 
+t=70 queue=0 uvicorn:8.8 celery:6.0 celery:6.0 celery:5.9 python3:4.3 uvicorn:3.0 
+t=75 queue=0 uvicorn:8.6 celery:5.8 celery:5.8 celery:5.8 python3:4.2 uvicorn:3.0 

@@ -1,0 +1,15 @@
+t=5 queue=4 python3:15.7 celery:3.9 uvicorn:3.0 uvicorn:1.1 
+t=10 queue=4 python3:8.9 celery:3.9 uvicorn:3.1 uvicorn:1.1 
+t=15 queue=4 python3:6.8 celery:3.9 uvicorn:3.1 uvicorn:1.1 
+t=20 queue=4 python3:5.8 celery:3.9 uvicorn:3.2 uvicorn:1.1 
+t=25 queue=4 python3:5.1 celery:3.9 uvicorn:3.2 uvicorn:1.1 
+t=30 queue=5 python3:4.7 celery:3.9 uvicorn:3.3 uvicorn:1.1 
+t=35 queue=4 python3:4.4 celery:3.9 uvicorn:3.3 uvicorn:1.1 
+t=40 queue=4 python3:4.2 celery:3.9 uvicorn:3.4 uvicorn:1.1 
+t=45 queue=3 python3:4.0 celery:3.9 uvicorn:3.4 uvicorn:1.1 
+t=50 queue=4 python3:3.9 celery:3.9 uvicorn:3.5 uvicorn:1.1 
+t=55 queue=4 celery:3.9 python3:3.8 uvicorn:3.5 uvicorn:1.1 
+t=60 queue=4 celery:3.9 python3:3.7 uvicorn:3.5 uvicorn:1.1 
+t=65 queue=4 celery:3.9 python3:3.6 uvicorn:3.6 uvicorn:1.1 
+t=70 queue=4 celery:3.9 uvicorn:3.6 python3:3.5 uvicorn:1.1 
+t=75 queue=4 celery:3.9 uvicorn:3.7 python3:3.5 uvicorn:1.1 
